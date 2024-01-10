@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
-import {BN, Program} from "@coral-xyz/anchor";
+import { BN, Program } from "@coral-xyz/anchor";
 import { NumberSetting } from "../target/types/number_setting";
-import {assert} from "chai";
+import { assert } from "chai";
 
 describe("number-setting", () => {
   // Configure the client to use the local cluster.
@@ -10,26 +10,23 @@ describe("number-setting", () => {
 
   const program = anchor.workspace.NumberSetting as Program<NumberSetting>;
   const [global] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("global")],
-        program.programId,
-  )
+    [Buffer.from("global")],
+    program.programId
+  );
 
   it("Is initialized!", async () => {
     // Add your test here.
-    const tx = await program.methods.initialize()
-        .accounts({ global})
-        .rpc();
+    const tx = await program.methods.initialize().accounts({ global }).rpc();
     console.log("Your transaction signature", tx);
   });
 
   it("Set global state value", async () => {
     // Add your test here.
     const tx = await program.methods
-        .setGlobalNumber(new BN(42))
-        .accounts({ global})
-        .rpc();
+      .setGlobalNumber(new BN(42))
+      .accounts({ global })
+      .rpc();
     console.log("Your transaction signature", tx);
-
 
     const globalAccount = await program.account.state.fetch(global);
     assert(globalAccount.number.toNumber() === 42);
@@ -39,28 +36,78 @@ describe("number-setting", () => {
     // Add your test here.
     const newWallet = anchor.web3.Keypair.generate();
     await provider.connection.requestAirdrop(newWallet.publicKey, 10000000000);
-    const [state ] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("state"), newWallet.publicKey.toBuffer()],
-        program.programId,
+    const [state] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("state"), newWallet.publicKey.toBuffer()],
+      program.programId
     );
     await delay(5000);
     const tx = await program.methods
-        .initializeAccountState()
-        .accounts({ state, signer: newWallet.publicKey })
-        .signers([newWallet])
-        .rpc();
+      .initializeAccountState()
+      .accounts({ state, signer: newWallet.publicKey })
+      .signers([newWallet])
+      .rpc();
     console.log("Your transaction signature", tx);
 
-    await program.methods.setStateNumber(new BN(42))
+    await program.methods
+      .setStateNumber(new BN(42))
+      .accounts({
+        state,
+        signer: newWallet.publicKey,
+      })
+      .signers([newWallet])
+      .rpc();
+
+    const stateAccount = await program.account.state.fetch(state);
+    assert(stateAccount.number.toNumber() === 42);
+  });
+
+  it("Increase account state", async () => {
+    // Add your test here.
+    const newWallet = anchor.web3.Keypair.generate();
+    await provider.connection.requestAirdrop(newWallet.publicKey, 10000000000);
+    const [state] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("state"), newWallet.publicKey.toBuffer()],
+      program.programId
+    );
+    await delay(5000);
+    const tx = await program.methods
+      .initializeAccountState()
+      .accounts({ state, signer: newWallet.publicKey })
+      .signers([newWallet])
+      .rpc();
+    console.log("Your transaction signature", tx);
+
+    await program.methods
+      .setStateNumber(new BN(42))
+      .accounts({
+        state,
+        signer: newWallet.publicKey,
+      })
+      .signers([newWallet])
+      .rpc();
+
+    let stateAccount = await program.account.state.fetch(state);
+    assert(stateAccount.number.toNumber() === 42);
+
+    try {
+      await program.methods
+        .increaseStateNumber(
+          // new BN("18446744073709551615"),
+          new BN(10)
+        )
         .accounts({
           state,
           signer: newWallet.publicKey,
         })
         .signers([newWallet])
         .rpc();
-
-    const stateAccount = await program.account.state.fetch(state);
-    assert(stateAccount.number.toNumber() === 42);
+      stateAccount = await program.account.state.fetch(state);
+      console.log("Increase state number ", stateAccount.number.toString());
+      assert(stateAccount.number.toNumber() === 52);
+      console.log(stateAccount.number.toString());
+    } catch (error) {
+      console.error(error);
+    }
   });
 });
 

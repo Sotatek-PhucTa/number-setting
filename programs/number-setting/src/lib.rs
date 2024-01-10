@@ -28,6 +28,14 @@ pub mod number_setting {
         state.number = number;
         Ok(())
     }
+
+    pub fn increase_state_number(ctx: Context<SetStateNumber>, number: u64) -> Result<()> {
+        let state = &mut ctx.accounts.state;
+        msg!("state.number: {}", state.number);
+        msg!("Number {}", number);
+        state.number = state.number + number;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
